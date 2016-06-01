@@ -175,6 +175,9 @@ typedef void(^STKFrameFilter)(UInt32 channelsPerFrame, UInt32 bytesPerFrame, UIn
 /// URLs with unrecognised schemes will return nil.
 +(STKDataSource*) dataSourceFromURL:(NSURL*)url;
 
+///添加自定义方法，如果是在线播放，指定文件缓存地址
++(STKDataSource*) dataSourceFromURL:(NSURL*)url andCacheFilePath : (nullable NSString *) filePath;
+
 /// Initializes a new STKAudioPlayer with the default options
 -(instancetype) init;
 

@@ -373,6 +373,9 @@ static void PopulateOptionsWithDefault(STKAutoRecoveringHTTPDataSourceOptions* o
 
 -(void) dataSourceErrorOccured:(STKDataSource*)dataSource
 {
+    if([dataSource isKindOfClass:[STKHTTPDataSource class]]){
+        [(STKHTTPDataSource*)dataSource closeCacheFile];
+    }
     NSLog(@"dataSourceErrorOccured");
     
     if (self.innerDataSource.httpStatusCode == 416 /* Range out of bounds */)

@@ -57,6 +57,9 @@
     NSDictionary* httpHeaders;
     AudioFileTypeID audioFileTypeHint;
     NSDictionary* requestHeaders;
+    
+    NSString * audioCacheFilePath;
+    AudioFileID audioFile;
 }
 -(void) open;
 
@@ -64,29 +67,29 @@
 
 @implementation STKHTTPDataSource
 
--(instancetype) initWithURL:(NSURL*)urlIn
+-(instancetype) initWithURL:(NSURL*)urlIn andCacheFilePath : (NSString *) filePath
 {
-    return [self initWithURLProvider:^NSURL* { return urlIn; }];
+    return [self initWithURLProvider:^NSURL* { return urlIn; } andCacheFilePath:filePath];
 }
 
--(instancetype) initWithURL:(NSURL *)urlIn httpRequestHeaders:(NSDictionary *)httpRequestHeaders
+-(instancetype) initWithURL:(NSURL *)urlIn httpRequestHeaders:(NSDictionary *)httpRequestHeaders andCacheFilePath : (NSString *) filePath
 {
-    self = [self initWithURLProvider:^NSURL* { return urlIn; }];
+    self = [self initWithURLProvider:^NSURL* { return urlIn; } andCacheFilePath:filePath];
     self->requestHeaders = httpRequestHeaders;
     return self;
 }
 
--(instancetype) initWithURLProvider:(STKURLProvider)urlProviderIn
+-(instancetype) initWithURLProvider:(STKURLProvider)urlProviderIn andCacheFilePath : (NSString *) filePath
 {
-	urlProviderIn = [urlProviderIn copy];
+    urlProviderIn = [urlProviderIn copy];
     
     return [self initWithAsyncURLProvider:^(STKHTTPDataSource* dataSource, BOOL forSeek, STKURLBlock block)
-    {
-        block(urlProviderIn());
-    }];
+            {
+                block(urlProviderIn());
+            } andCacheFilePath:filePath];
 }
 
--(instancetype) initWithAsyncURLProvider:(STKAsyncURLProvider)asyncUrlProviderIn
+-(instancetype) initWithAsyncURLProvider:(STKAsyncURLProvider)asyncUrlProviderIn andCacheFilePath : (NSString *) filePath
 {
     if (self = [super init])
     {
@@ -97,6 +100,22 @@
         self->asyncUrlProvider = [asyncUrlProviderIn copy];
         
         audioFileTypeHint = [STKLocalFileDataSource audioFileTypeHintFromFileExtension:self->currentUrl.pathExtension];
+        
+        if(filePath){
+            audioCacheFilePath = filePath;
+            AudioStreamBasicDescription asbd = (AudioStreamBasicDescription)
+            {
+                .mSampleRate = 44100.00,
+                .mFormatID = kAudioFormatMPEGLayer3,
+                .mFramesPerPacket = 1,
+                .mChannelsPerFrame = 2,
+                .mBytesPerFrame = sizeof(SInt16) * 2 /*channelsPerFrame*/,
+                .mBitsPerChannel = 8 * sizeof(SInt16),
+                .mBytesPerPacket = (sizeof(SInt16) * 2)
+            };
+            OSStatus audioErr = noErr;
+            audioErr = AudioFileCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:[filePath stringByAppendingString:@"_tmp"]], kAudioFileMP3Type, &asbd, kAudioFileFlags_EraseFile, &audioFile);
+        }
     }
     
     return self;
@@ -476,6 +495,16 @@
     relativePosition += read;
     
     return read;
+}
+
+- (void) closeCacheFile
+{
+    if(audioFile && audioCacheFilePath){
+        dispatch_async(dispatch_get_global_queue(0, 0), ^{
+            NSFileManager *manager = [NSFileManager defaultManager];
+            [manager moveItemAtPath:[NSString stringWithFormat:@"%@_tmp", audioCacheFilePath] toPath:audioCacheFilePath error:nil];
+        });
+    }
 }
 
 -(void) open
