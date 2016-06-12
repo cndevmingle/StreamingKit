@@ -1,4 +1,4 @@
-Pod::Spec.new do |s|
+Pod::Spec.new do |s| 
   s.name         = 'StreamingKit'
   s.version      = '1.0.0'
   s.summary      = '在StreamingKit基础上添加了缓存在线音频接口'
